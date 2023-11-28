@@ -1,6 +1,6 @@
 shinyUI(
     bslib::page_fluid(
-        title = "A bookmarking with mongodb",
+        title = "Persistent Data Storage",
         shinyjs::useShinyjs(),
         tags$head(
             tags$style(HTML(

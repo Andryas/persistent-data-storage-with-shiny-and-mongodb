@@ -7,6 +7,7 @@ shinyServer(function(input, output, session) {
         )
     })
     historic_record <- reactiveVal(NULL)
+    client_info <- reactiveVal(NULL)
 
     # ! Screen 0 / Projects ----
     observe({
@@ -76,7 +77,7 @@ shinyServer(function(input, output, session) {
 
     })
 
-    client_info <- reactive({
+    observe({
         req(input$read_client)
 
         client_info <- conn$iterate(
@@ -89,11 +90,14 @@ shinyServer(function(input, output, session) {
 
         client_info <- client_info$one()
 
+        shiny::freezeReactiveValue(input, "gender")
         updateSelectInput(
             session = session,
             input = "gender",
             selected = ifelse(is.null(client_info$gender), "male", client_info$gender)
         )
+
+        shiny::freezeReactiveValue(input, "age")
         shinyWidgets::updateAutonumericInput(
             session = session,
             input = "age",
@@ -106,7 +110,7 @@ shinyServer(function(input, output, session) {
             historic_record(NULL)
         }
 
-        client_info
+        client_info(client_info)
     })
 
     # ! Screen 1 / Session ----
@@ -172,31 +176,19 @@ shinyServer(function(input, output, session) {
         reactable::reactable(historic_record())
     })
 
-    # ! Bookmarking ----
+    # ! Persistent storage ----
     observe({
-        req(input$gender, client_info())
+        req(client_info())
 
-        conn$update(
-            stringr::str_interp('{"_id": {"$oid": "${id}"}}', list(id = client_info()[["_id"]])),
-            jsonlite::toJSON(list("$set" = list("gender" = input$gender)), auto_unbox = TRUE)
+        payload <- list(
+            "gender" = input$gender,
+            "age" = input$age,
+            "historic" = historic_record()
         )
-    })
-
-    observe({
-        req(input$age, client_info())
 
         conn$update(
             stringr::str_interp('{"_id": {"$oid": "${id}"}}', list(id = client_info()[["_id"]])),
-            jsonlite::toJSON(list("$set" = list("age" = input$age)), auto_unbox = TRUE)
-        )
-    })
-
-    observe({
-        req(historic_record(), client_info())
-
-        conn$update(
-            stringr::str_interp('{"_id": {"$oid": "${id}"}}', list(id = client_info()[["_id"]])),
-            jsonlite::toJSON(list("$set" = list("historic" = historic_record())), auto_unbox = TRUE)
+            jsonlite::toJSON(list("$set" = payload), auto_unbox = TRUE)
         )
     })
 
